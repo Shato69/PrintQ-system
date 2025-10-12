@@ -21,6 +21,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 app.use(cors());
+// Serve frontend files from the 'public' folder
+app.use(express.static(path.join(__dirname, "../../html")));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../../html/index.html"));
+});
 
 // ================== Email Transporter ==================
 const transporter = nodemailer.createTransport({
