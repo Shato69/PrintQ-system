@@ -25,9 +25,11 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, "../../html")));
 app.use("/src", express.static(path.join(__dirname, "../../src"))); // JS/CSS
 app.use("/img", express.static(path.join(__dirname, "../../img"))); // images
-app.get("*", (req, res) => {
+
+app.get("(.*)", (req, res) => {
   res.sendFile(path.join(__dirname, "../../html/index.html"));
 });
+
 
 // ================== Email Transporter ==================
 const transporter = nodemailer.createTransport({
