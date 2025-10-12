@@ -5,7 +5,7 @@
   "main": "email-api.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node email-api.js"
+    "start": "src/js/backend/email-api.js"
   "main": "src/js/backend/email-api.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -27,4 +27,5 @@
     "resend": "^6.1.2"
   }
 }
+
 
