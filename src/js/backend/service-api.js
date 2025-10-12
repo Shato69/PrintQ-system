@@ -23,6 +23,8 @@ app.use(express.json());
 app.use(cors());
 // Serve frontend files from the 'public' folder
 app.use(express.static(path.join(__dirname, "../../html")));
+app.use("/src", express.static(path.join(__dirname, "../../src"))); // JS/CSS
+app.use("/img", express.static(path.join(__dirname, "../../img"))); // images
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../../html/index.html"));
 });
