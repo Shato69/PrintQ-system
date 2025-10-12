@@ -1,0 +1,329 @@
+/* ==== Base Layout ==== */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f3f4f6;
+  margin: 0;
+  padding: 0;
+  color: #1f2937;
+}
+
+.header {
+  background-color: #2563eb;
+  color: white;
+  padding: 20px 30px;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+/* ==== Main Page ==== */
+.main-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 80px);
+  text-align: center;
+  background: url(OIP.jfif);
+  background-size: cover;
+}
+
+.main-content {
+  background: white;
+  padding: 60px 80px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.start-button {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 15px 50px;
+  font-size: 20px;
+  cursor: pointer;
+}
+.start-button:hover {
+  background-color: #b91c1c;
+}
+
+/* ==== Printing Page Layout ==== */
+.printing-page {
+  display: none;
+  padding: 30px 60px;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.back-button {
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+.back-button:hover {
+  background-color: #4b5563;
+}
+
+/* Two-column layout */
+.print-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 40px;
+}
+
+/* ==== LEFT SIDE ==== */
+.print-left {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.section {
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  padding: 25px;
+}
+
+.section-title {
+  font-weight: 600;
+  font-size: 18px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Upload Area */
+.upload-area {
+  border: 2px dashed #9ca3af;
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.upload-area:hover {
+  border-color: #2563eb;
+  background-color: #f1f5ff;
+}
+
+/* ==== Paper Size & Print Type ==== */
+.options-grid {
+  display: flex;
+  gap: 20px;
+}
+
+.option-group {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 20px;
+}
+
+.option-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.option-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.print-type-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option-button,
+.print-type-button {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px;
+  background: #f9fafb;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.option-button:hover,
+.print-type-button:hover {
+  background: #e5e7eb;
+}
+
+.option-button.selected,
+.print-type-button.selected {
+  border-color: #2563eb;
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* ==== RIGHT SIDE ==== */
+.print-right {
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cost-section {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.cost-section .section-title {
+  margin-bottom: 10px;
+}
+
+.file-list-box {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #f9fafb;
+  padding: 5px 0;
+  margin-bottom: 10px;
+}
+
+/* File list items */
+#fileList {
+  margin-top: 15px;
+  margin-left: 4px; /* aligns neatly under the Upload File text */
+  padding-left: 0;
+  list-style-type: none;
+  font-weight: 600;
+  color: #059669;
+  text-align: left; /* ensures alignment to the left edge */
+}
+
+#fileList li {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+  color: #059669;
+  cursor: pointer;
+}
+#fileList li:hover {
+  background: #eef2ff;
+}
+#fileList li button {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+#fileList li button:hover {
+  background: #dc2626;
+}
+
+/* Cost rows */
+.cost-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0;
+  font-size: 15px;
+}
+
+.cost-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+/* Pay button */
+.pay-button {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 18px 0;
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;              /* Full width */
+  margin-top: 20px;
+  transition: background 0.2s;
+}
+
+.pay-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.pay-button:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+.payment-note {
+  font-size: 13px;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 5px;
+}
+
+/* ==== Dynamic Button States ==== */
+#payButton {
+  background-color: #d1d5db; /* Inactive gray */
+  color: #333;
+  cursor: not-allowed;
+  transition: all 0.3s ease;
+}
+
+#payButton.active {
+  background-color: #ef4444; /* Active red */
+  color: white;
+  cursor: pointer;
+}
+
+#payButton.processing {
+  background-color: #d3d3d3; /* Processing yellow */
+  color: black;
+  cursor: wait;
+}
+
+/* ==== Scrollbar Style ==== */
+.file-list-box::-webkit-scrollbar {
+  width: 8px;
+}
+.file-list-box::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 4px;
+}
+
+/* ==== Responsive ==== */
+@media (max-width: 900px) {
+  .print-layout {
+    flex-direction: column;
+  }
+  .options-grid {
+    flex-direction: column;
+  }
+  .print-left,
+  .print-right {
+    width: 100%;
+  }
+  .printing-page {
+    padding: 20px;
+  }
+}
