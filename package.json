@@ -2,20 +2,15 @@
   "name": "backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "email-api.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "src/js/backend/email-api.js"
+  "description": "PrintQ backend system",
   "main": "src/js/backend/email-api.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node email-api.js"
     "start": "node src/js/backend/email-api.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -27,5 +22,3 @@
     "resend": "^6.1.2"
   }
 }
-
-
