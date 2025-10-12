@@ -26,9 +26,14 @@ app.use(express.static(path.join(__dirname, "../../html")));
 app.use("/src", express.static(path.join(__dirname, "../../src"))); // JS/CSS
 app.use("/img", express.static(path.join(__dirname, "../../img"))); // images
 
-app.get("(.*)", (req, res) => {
+// Serve static frontend first
+app.use(express.static(path.join(__dirname, "../../html")));
+
+// Catch-all route for SPA frontend
+app.get("/:any(*)", (req, res) => {
   res.sendFile(path.join(__dirname, "../../html/index.html"));
 });
+
 
 
 // ================== Email Transporter ==================
