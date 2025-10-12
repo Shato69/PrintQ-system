@@ -2,10 +2,21 @@
   "name": "backend",
   "version": "1.0.0",
   "type": "module",
+<<<<<<< HEAD
   "main": "email-api.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node email-api.js"
+=======
+  "main": "src/js/backend/email-api.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+<<<<<<<< HEAD:src/js/backend/package.json
+    "start": "node email-api.js"
+========
+    "start": "node src/js/backend/email-api.js"
+>>>>>>>> 1a48149 (Renames email-api.js into service-api.js):package.json
+>>>>>>> 1a48149 (Renames email-api.js into service-api.js)
   },
   "keywords": [],
   "author": "",
