@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "description": "PrintQ backend system",
-  "main": "src/js/backend/email-api.js",
+  "main": "js/backend/email-api.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/js/backend/email-api.js"
+    "start": "node js/backend/email-api.js"
   },
   "keywords": [],
   "author": "",
@@ -22,3 +22,4 @@
     "resend": "^6.1.2"
   }
 }
+
