@@ -19,13 +19,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ------------------ Paths ------------------
-// root/ is where index.html lives
 const PROJECT_ROOT = path.resolve(__dirname, "../../../..");
-
-const HTML_DIR = PROJECT_ROOT;                       // index.html at root
-const CSS_DIR  = path.join(PROJECT_ROOT, "src/css"); // css folder
-const JS_DIR   = path.join(PROJECT_ROOT, "src/js");  // js folder (optional)
-const IMG_DIR  = path.join(PROJECT_ROOT, "img");     // images folder
+const HTML_DIR = path.resolve(".");                       // root directory
+const CSS_DIR  = path.join(PROJECT_ROOT, "src/css");     // css folder
+const JS_DIR   = path.join(PROJECT_ROOT, "src/js");      // js folder
+const IMG_DIR  = path.join(PROJECT_ROOT, "src/img");     // images folder
 const INDEX_HTML_PATH = path.join(HTML_DIR, "index.html");
 
 // ------------------ App setup ------------------
@@ -103,7 +101,7 @@ app.post("/convert-docx", upload.single("file"), async (req, res) => {
 
     const pdfBytes = fs.readFileSync(pdfPath);
     const pdfDoc = await PDFDocument.load(pdfBytes);
-    let pageCount = pdfDoc.getPageCount();
+    const pageCount = pdfDoc.getPageCount();
 
     // Cleanup temp files
     try { fs.unlinkSync(inputPath); } catch(e) {}
@@ -118,18 +116,14 @@ app.post("/convert-docx", upload.single("file"), async (req, res) => {
 
 // ------------------ Static serving ------------------
 
-// Serve root (index.html)
+// Serve root (index.html + any other files in root)
 if (fs.existsSync(HTML_DIR)) {
   app.use(express.static(HTML_DIR));
-} else {
-  console.warn("WARNING: HTML_DIR not found at", HTML_DIR);
 }
 
 // Serve CSS
 if (fs.existsSync(CSS_DIR)) {
   app.use("/css", express.static(CSS_DIR));
-} else {
-  console.warn("WARNING: CSS_DIR not found at", CSS_DIR);
 }
 
 // Serve JS
