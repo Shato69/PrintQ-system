@@ -4,7 +4,7 @@ const pdfjsLib = window['pdfjs-dist/build/pdf'];
 
 // ✅ BACKEND URL - Production only
 // For debugging localhost, uncomment this line:
-// const BACKEND_URL = "http://localhost:3000";
+ //const BACKEND_URL = "http://localhost:3000";
 
 const BACKEND_URL = "https://campusprintq.onrender.com";
 
@@ -355,6 +355,7 @@ window.processPayment = async function () {
     const totalCost = ordersSummary.reduce((sum, o) => sum + o.cost, 0);
     messageLines.push(`\n📄 Total: ₱${totalCost.toFixed(2)}`);
     messageLines.push("\nScan the attached QR to pay.");
+    messageLines.push("\nThis message is system generated.");
     
     const message = messageLines.join("\n");
 
