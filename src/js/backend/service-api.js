@@ -10,7 +10,6 @@ import fs from "fs";
 import os from "os";
 import { fileURLToPath } from "url";
 
-// ================== INITIAL SETUP ==================
 dotenv.config();
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -22,15 +21,11 @@ const __dirname = dirname(__filename);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 // ================== FRONTEND SERVING ==================
-// Serve frontend (index.html, assets, etc.)
-const frontendPath = join(__dirname, "../../../"); 
+const frontendPath = join(__dirname, "../../../");
 app.use(express.static(frontendPath));
-// ================== FALLBACK ROUTE ==================
-// Handles any route not matched above (Render-safe)
-app.use((req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
+
 // ================== EMAIL API ==================
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -52,14 +47,12 @@ app.post("/send-email", async (req, res) => {
       to,
       subject,
       text: message,
-      attachments: [
-        { filename: "GCash-MyQR.jpg", path: qrPath }
-      ],
+      attachments: [{ filename: "GCash-MyQR.jpg", path: qrPath }],
     };
 
     const info = await transporter.sendMail(mailOptions);
     console.log("📨 Email sent:", info.response);
-    res.status(200).json({ message: "Email sent successfully" });
+    res.status(200).json({ messageId: info.messageId || info.response });
   } catch (err) {
     console.error("❌ Email error:", err);
     res.status(500).json({ error: err.message });
@@ -71,13 +64,12 @@ app.post("/convert-docx", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    const tempDir = path.join(/*os.tmpdir(),*/"/tmp", "printq-temp");
+    const tempDir = path.join("/tmp", "printq-temp");
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
     const inputPath = path.join(tempDir, `${Date.now()}_${req.file.originalname}`);
     fs.writeFileSync(inputPath, req.file.buffer);
 
-    // ⚠️ LibreOffice conversion (will only work locally unless you use Docker)
     await new Promise((resolve, reject) => {
       exec(`soffice --headless --convert-to pdf --outdir "${tempDir}" "${inputPath}"`, (err) => {
         if (err) reject(err);
@@ -100,8 +92,12 @@ app.post("/convert-docx", upload.single("file"), async (req, res) => {
   }
 });
 
-
-
+// ================== FALLBACK ROUTE ==================
+// Serve index.html only for non-API routes
+app.use((req, res, next) => {
+  if (req.path.startsWith("/convert-docx") || req.path.startsWith("/send-email")) return next();
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
 
 // ================== START SERVER ==================
 const PORT = process.env.PORT || 3000;
