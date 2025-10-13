@@ -1,1 +1,2 @@
-libreoffice
+#libreoffice
+apt-get install libreoffice libreoffice-writer fonts-dejavu-core
