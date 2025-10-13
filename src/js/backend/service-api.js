@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json({ limit: "15mb" })); // increase if needed
-app.use(cors({ origin: "*" }));
+app.use(cors({ origin: "https://shato69.github.io/PrintQ-system" }));
 
 // ------------ Helper constants ------------
 const HTML_DIR = path.join(__dirname, "../../html"); // where index.html lives
@@ -171,3 +171,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
