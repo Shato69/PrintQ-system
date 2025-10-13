@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print-Q: Campus Printing System</title>
+    <link rel="stylesheet" href="src/css/index_style.css">
+    <script type="module" src="src/js/supabase.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+
+</head>
+<body>
+    <div class="header">
+        Print-Q: Campus Printing System
+    </div>
+
+    <!-- Main Page -->
+    <div id="mainPage" class="main-page">
+        <div class="main-content">
+            <h1 class="main-title">Print-Q</h1>
+            <p class="main-description">Print anytime, anywhere inside campus.</p>
+            <button class="start-button" onclick="showPrintingPage()">START PRINTING</button>
+        </div>
+    </div>
+
+     <!-- Printing Page -->
+  <div id="printingPage" class="printing-page">
+    <button class="back-button" onclick="showMainPage()">← Back to Main</button>
+
+    <div class="print-layout">
+      <!-- LEFT SIDE -->
+      <div class="print-left">
+        <!-- Upload Section -->
+        <div id="uploadSection" class="section upload-card">
+          <div class="section-title">
+            <span class="upload-icon">📁</span>
+            Upload File
+          </div>
+          <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">⬆️</div>
+            <div class="upload-text">Drop your files here or click to browse</div>
+            <div style="font-size: 14px; color: #9ca3af;">
+              Supported file types:<br />
+              Document: PDF, DOC, DOCX<br />
+              Media: PNG, JPG, WEBP, JFIF
+            </div>
+            <div class="payment-note">Note: doc/docx files will take a few seconds 
+            before it appears on screen</div>
+          </div>
+          <input
+            type="file"
+            id="fileInput"
+            class="file-input"
+            accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.tiff"
+            multiple
+            style="display:none;"
+          />
+          <ul id="fileList"></ul>
+        </div>
+
+        <!-- Paper Size + Print Type -->
+        <div id="optionsGrid" class="options-grid">
+          <div id="paperSizeOptions" class="option-group">
+            <div class="option-title">Paper Size</div>
+            <div class="option-buttons">
+              <button class="option-button selected" onclick="selectPaperSize(this, 'Letter')">Letter (8.5" × 11")</button>
+              <button class="option-button" onclick="selectPaperSize(this, 'Legal')">Legal (8.5" × 14")</button>
+              <button class="option-button" onclick="selectPaperSize(this, 'A4')">A4 (210 × 297 mm)</button>
+            </div>
+          </div>
+
+          <div id="printTypeOptions" class="option-group">
+            <div class="option-title">Print Type</div>
+            <div class="print-type-buttons">
+              <button class="print-type-button selected" onclick="selectPrintType(this, 'bw', 2)">
+                <div>Black & White</div>
+                <div style="font-weight:600;margin-top:5px;">₱2/page</div>
+              </button>
+              <button class="print-type-button" onclick="selectPrintType(this, 'color', 5)">
+                <div>Colored</div>
+                <div style="font-weight:600;margin-top:5px;">₱5/page</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE -->
+      <div class="print-right">
+        <div id="costSection" class="cost-section">
+          <div class="section-title">Cost Calculation</div>
+          <div class="cost-row">
+            <span>Total pages to be printed:</span>
+            <span id="pageCount">0 pages</span>
+          </div>
+          <div class="cost-row">
+            <span>Price per page:</span>
+            <span id="pricePerPage">₱2.00</span>
+          </div>
+          <div class="cost-total">
+            <span>Total Cost:</span>
+            <span id="totalCost">₱0.00</span>
+          </div>
+               <!-- User Email Input -->
+    <!-- Customer Email Input -->
+<div class="email-section">
+  <label for="customerEmail" style="font-weight:600;margin: top 5vw;">Enter your Gmail:</label>
+  <input
+    type="email"
+    id="customerEmail"
+    placeholder="e.g. johndoe@gmail.com"
+    required
+    style="
+      width: 97%;
+      padding: 7px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-top: 6px;
+      margin-bottom: 6px;
+    "
+  />
+
+  <small style="color:#6b7280;">We'll send a confirmation email after your order is placed.</small>
+        </div>
+      </div>
+        <div class="file-preview-box">
+          <ul id="fileListPreview"></ul>
+        </div>
+
+        <div class="payment-container">
+          <button class="pay-button" id="payButton" disabled onclick="processPayment()">
+            💳 Place Order
+          </button>
+          <div class="payment-note">Payment first before printing</div>
+          <div class="payment-note">Check your file first before proceeding</div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <script type="module" src="src/js/printLogic.js"></script>
+</body>
+</html>
