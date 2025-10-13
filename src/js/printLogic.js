@@ -1,7 +1,6 @@
 import { supabase } from "./supabase.js";
 
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
-const BACKEND_URL = "https://campusprintq.onrender.com"; 
 
 // State
 let uploadedFiles = []; // { file, name, type, size, pages }
@@ -71,8 +70,7 @@ async function sendEmailNotification(to, subject, message) {
   }
 
   try {
-    //const res = await fetch("http://localhost:3000/send-email"
-    const res = await fetch(`${BACKEND_URL}/send-email`, {
+    const res = await fetch("http://localhost:3000/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to, subject, message })
@@ -157,8 +155,7 @@ async function processSingleFile(file) {
       const formData = new FormData();
       formData.append("file", file);
       try {
-        //const res = await fetch("http://localhost:3000/convert-docx"
-        const res = await fetch(`${BACKEND_URL}/convert-docx`, {
+        const res = await fetch("http://localhost:3000/convert-docx", {
           method: "POST",
           body: formData,
         });
