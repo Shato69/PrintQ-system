@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: campusprintq
+    runtime: node
+    buildCommand: "apt-get update && apt-get install -y libreoffice && npm install"
+    startCommand: "npm start"
+    envVars:
+      - key: NODE_ENV
+        value: production
