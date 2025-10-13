@@ -1,7 +1,7 @@
 import { supabase } from "./supabase.js";
 
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.16.105/pdf.worker.min.js';
+//pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.16.105/pdf.worker.min.js';
 
 
 // State
@@ -402,4 +402,5 @@ document.addEventListener("keydown", (e) => {
 
 // Initialize
 renderFileList();
+
 updateCostCalculation();
