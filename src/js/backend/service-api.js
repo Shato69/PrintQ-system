@@ -18,17 +18,22 @@ const upload = multer({ storage: multer.memoryStorage() });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
-app.use(express.json({ limit: "15mb" })); // increase if needed
-app.use(cors({ origin: "https://shato69.github.io/PrintQ-system" }));
+// ------------------ Paths ------------------
+// root/ is where index.html lives
+const PROJECT_ROOT = path.resolve(__dirname, "../../../..");
 
-// ------------ Helper constants ------------
-const HTML_DIR = path.join(__dirname, "../../html"); // where index.html lives
-const SRC_DIR  = path.join(__dirname, "../../src");  // where css/js live
-const IMG_DIR  = path.join(__dirname, "../../img");  // images folder (GCash-MyQR.jpg)
+const HTML_DIR = PROJECT_ROOT;                       // index.html at root
+const CSS_DIR  = path.join(PROJECT_ROOT, "src/css"); // css folder
+const JS_DIR   = path.join(PROJECT_ROOT, "src/js");  // js folder (optional)
+const IMG_DIR  = path.join(PROJECT_ROOT, "img");     // images folder
 const INDEX_HTML_PATH = path.join(HTML_DIR, "index.html");
 
-// -------------- API ROUTES (define FIRST) --------------
+// ------------------ App setup ------------------
+const app = express();
+app.use(express.json({ limit: "15mb" }));
+app.use(cors({ origin: "https://shato69.github.io/PrintQ-system" }));
+
+// ------------------ API Routes ------------------
 
 // Health check
 app.get("/health", (req, res) => {
@@ -44,6 +49,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Send email API
 app.post("/send-email", async (req, res) => {
   try {
     const { to, subject, message } = req.body;
@@ -69,7 +75,7 @@ app.post("/send-email", async (req, res) => {
   }
 });
 
-// DOCX -> count pages (LibreOffice must be available on the host)
+// DOCX -> PDF -> page count
 app.post("/convert-docx", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -110,65 +116,50 @@ app.post("/convert-docx", upload.single("file"), async (req, res) => {
   }
 });
 
-// -------------- STATIC SERVING --------------
-// Serve html folder (index.html) and any assets inside html/
+// ------------------ Static serving ------------------
+
+// Serve root (index.html)
 if (fs.existsSync(HTML_DIR)) {
   app.use(express.static(HTML_DIR));
 } else {
-  console.warn("WARNING: html folder not found at", HTML_DIR);
+  console.warn("WARNING: HTML_DIR not found at", HTML_DIR);
 }
 
-// Serve /src (css/js) if it's sibling to html (your described layout)
-if (fs.existsSync(SRC_DIR)) {
-  app.use("/src", express.static(SRC_DIR));
+// Serve CSS
+if (fs.existsSync(CSS_DIR)) {
+  app.use("/css", express.static(CSS_DIR));
 } else {
-  console.warn("WARNING: src folder not found at", SRC_DIR);
+  console.warn("WARNING: CSS_DIR not found at", CSS_DIR);
 }
 
-// Serve /img for images (like GCash-MyQR.jpg)
+// Serve JS
+if (fs.existsSync(JS_DIR)) {
+  app.use("/js", express.static(JS_DIR));
+}
+
+// Serve images
 if (fs.existsSync(IMG_DIR)) {
   app.use("/img", express.static(IMG_DIR));
 }
 
-// -------------- BRUTE-FORCE SPA FALLBACK (NO path-to-regexp) --------------
-// This middleware does not use app.get("pattern", ...) so we avoid any path-to-regexp parsing.
-// It only handles GET requests that accept HTML and that haven't already been matched by static files or APIs.
-app.use((req, res, next) => {
-  // Only try to return index.html for GET requests that accept HTML
-  if (req.method !== "GET") return next();
-  const acceptsHtml = req.headers.accept && req.headers.accept.indexOf("text/html") !== -1;
-  if (!acceptsHtml) return next();
-
-  // If index exists, try sendFile. If sendFile fails, fallback to streaming file contents.
+// ------------------ SPA fallback ------------------
+app.get("*", (req, res) => {
   if (fs.existsSync(INDEX_HTML_PATH)) {
-    res.sendFile(INDEX_HTML_PATH, (err) => {
-      if (err) {
-        console.error("sendFile failed, falling back to readFile:", err);
-        try {
-          const html = fs.readFileSync(INDEX_HTML_PATH, "utf8");
-          res.type("html").send(html);
-        } catch (readErr) {
-          console.error("Failed reading index.html for fallback:", readErr);
-          next();
-        }
-      }
-    });
-    return; // we responded (or attempted to)
+    res.sendFile(INDEX_HTML_PATH);
   } else {
     console.warn("index.html not found at", INDEX_HTML_PATH);
-    return next();
+    res.status(404).send("index.html not found");
   }
 });
 
-// -------------- Generic error handler --------------
+// ------------------ Error handler ------------------
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
   res.status(500).json({ error: "internal server error" });
 });
 
-// -------------- Server start --------------
+// ------------------ Server start ------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
