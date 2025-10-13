@@ -1,136 +1,100 @@
 // src/js/backend/service-api.js
 import express from "express";
 import cors from "cors";
-import { PDFDocument } from "pdf-lib";
 import multer from "multer";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
-import path from "path";
+import { PDFDocument } from "pdf-lib";
 import { exec } from "child_process";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import os from "os";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+dotenv.config({ path: "./.env" });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
-app.use(express.json({ limit: "30mb" }));
-app.use(cors());
-
 const upload = multer({ storage: multer.memoryStorage() });
 
-// ------------------ Constants ------------------
-const HTML_DIR = path.join(__dirname, "../../html");
-const SRC_DIR  = path.join(__dirname, "../../src");
-const IMG_DIR  = path.join(__dirname, "../../img");
-const INDEX_HTML = path.join(HTML_DIR, "index.html");
+app.use(express.json({ limit: "25mb" }));
+app.use(cors());
 
-// ------------------ Nodemailer ------------------
-const transporter = process.env.GMAIL_USER && process.env.GMAIL_PASSWORD
-  ? nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASSWORD }
-    })
-  : null;
+// Serve static files — root index.html and assets
+const ROOT_DIR = path.resolve(".");
+app.use(express.static(ROOT_DIR));
 
-if (!transporter) console.warn("GMAIL_USER or GMAIL_PASSWORD not set. /send-email will fail.");
+// ✅ Health check
+app.get("/health", (req, res) => res.json({ ok: true, time: new Date() }));
 
-// ------------------ Routes ------------------
-
-// Health
-app.get("/health", (_, res) => res.json({ status: "ok", time: new Date().toISOString() }));
-
-// Send email
+// ✅ Email API
 app.post("/send-email", async (req, res) => {
   try {
-    if (!transporter) return res.status(500).json({ error: "Email transporter not configured" });
-
     const { to, subject, message } = req.body;
-    if (!to || !subject || !message) return res.status(400).json({ error: "Missing fields" });
+    if (!to || !subject || !message)
+      return res.status(400).json({ error: "Missing email fields" });
 
-    const qrPath = path.join(IMG_DIR, "GCash-MyQR.jpg");
-    const attachments = fs.existsSync(qrPath) ? [{ filename: "GCash-MyQR.jpg", path: qrPath }] : [];
-
-    const info = await transporter.sendMail({
-      from: process.env.GMAIL_USER,
-      to, subject, text: message, attachments
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASSWORD },
     });
 
-    res.json({ ok: true, info: info?.response || info });
+    const qrPath = path.join(ROOT_DIR, "img", "GCash-MyQR.jpg");
+    const info = await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to,
+      subject,
+      text: message,
+      attachments: fs.existsSync(qrPath)
+        ? [{ filename: "GCash-MyQR.jpg", path: qrPath }]
+        : [],
+    });
+
+    console.log("Email sent:", info.response);
+    res.json({ ok: true, message: "Email sent successfully" });
   } catch (err) {
-    console.error("/send-email error:", err);
-    res.status(500).json({ error: err.message || "internal error" });
+    console.error("Email error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Convert DOCX
+// ✅ DOCX conversion API
 app.post("/convert-docx", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    const tempDir = path.join(os.tmpdir(), "printq-temp");
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    const tmpDir = path.join(os.tmpdir(), "printq-temp");
+    fs.mkdirSync(tmpDir, { recursive: true });
 
-    const safeName = `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
-    const inputPath = path.join(tempDir, safeName);
+    const inputPath = path.join(tmpDir, req.file.originalname);
     fs.writeFileSync(inputPath, req.file.buffer);
 
     await new Promise((resolve, reject) => {
-      exec(`soffice --headless --convert-to pdf --outdir "${tempDir}" "${inputPath}"`, (err, _, stderr) => {
-        if (err) return reject(stderr || err);
-        resolve();
-      });
+      const cmd = `soffice --headless --convert-to pdf:writer_pdf_Export --outdir "${tmpDir}" "${inputPath}"`;
+      exec(cmd, (err) => (err ? reject(err) : resolve()));
     });
 
     const pdfPath = inputPath.replace(/\.(docx|doc)$/i, ".pdf");
-    if (!fs.existsSync(pdfPath)) throw new Error("Converted PDF not found");
-
-    const pdfDoc = await PDFDocument.load(fs.readFileSync(pdfPath));
+    const pdfBytes = fs.readFileSync(pdfPath);
+    const pdfDoc = await PDFDocument.load(pdfBytes);
     const pages = pdfDoc.getPageCount();
 
     fs.unlinkSync(inputPath);
     fs.unlinkSync(pdfPath);
 
-    res.json({ ok: true, originalName: req.file.originalname, pages });
+    res.json({ ok: true, pages });
   } catch (err) {
-    console.error("/convert-docx error:", err);
-    res.status(500).json({ error: err.message || "conversion failed" });
+    console.error("DOCX error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ------------------ Static serving ------------------
-if (fs.existsSync(HTML_DIR)) app.use(express.static(HTML_DIR));
-if (fs.existsSync(SRC_DIR)) app.use("/src", express.static(SRC_DIR));
-if (fs.existsSync(IMG_DIR)) app.use("/img", express.static(IMG_DIR));
-
-// ------------------ SPA fallback ------------------
-app.use((req, res, next) => {
-  if (req.method !== "GET") return next();
-  const acceptsHtml = req.headers.accept?.includes("text/html") || req.headers.accept?.includes("*/*");
-  if (!acceptsHtml) return next();
-
-  if (fs.existsSync(INDEX_HTML)) {
-    return res.sendFile(INDEX_HTML, err => {
-      if (err) {
-        console.error("Failed sendFile index.html, fallback readFile:", err);
-        try { res.type("html").send(fs.readFileSync(INDEX_HTML, "utf8")); } catch { next(); }
-      }
-    });
-  } else {
-    console.warn("index.html not found at", INDEX_HTML);
-    return next();
-  }
+// ✅ Fallback for SPA — always serve index.html
+app.get("*", (req, res) => {
+  res.sendFile(path.join(ROOT_DIR, "index.html"));
 });
 
-// ------------------ Error handler ------------------
-app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  if (!res.headersSent) res.status(500).json({ error: "internal server error" });
-});
-
-// ------------------ Start server ------------------
+// ✅ Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[server] Running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
