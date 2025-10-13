@@ -22,17 +22,15 @@ const __dirname = dirname(__filename);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+// ================== FRONTEND SERVING ==================
+// Serve frontend (index.html, assets, etc.)
+const frontendPath = join(__dirname, "../../../"); 
+app.use(express.static(frontendPath));
 // ================== FALLBACK ROUTE ==================
 // Handles any route not matched above (Render-safe)
 app.use((req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
-// ================== FRONTEND SERVING ==================
-// Serve frontend (index.html, assets, etc.)
-const frontendPath = join(__dirname, "../../../"); // adjust if your index.html is at project root
-app.use(express.static(frontendPath));
-
 // ================== EMAIL API ==================
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -73,7 +71,7 @@ app.post("/convert-docx", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    const tempDir = path.join(os.tmpdir(), "printq-temp");
+    const tempDir = path.join(/*os.tmpdir(),*/"/tmp", "printq-temp");
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
     const inputPath = path.join(tempDir, `${Date.now()}_${req.file.originalname}`);
