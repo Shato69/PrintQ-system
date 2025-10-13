@@ -1,12 +1,6 @@
 import { supabase } from "./supabase.js";
-import { pdfjsLib } from 'pdfjs-dist/build/pdf';
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.entry';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
-//pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.16.105/pdf.worker.min.js';
-
 
 // State
 let uploadedFiles = []; // { file, name, type, size, pages }
@@ -406,6 +400,4 @@ document.addEventListener("keydown", (e) => {
 
 // Initialize
 renderFileList();
-
 updateCostCalculation();
-
