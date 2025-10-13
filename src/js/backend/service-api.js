@@ -1,6 +1,4 @@
 // src/js/backend/service-api.js
-// Render-ready, brute-force, safe SPA + Email + DOCX
-
 import express from "express";
 import cors from "cors";
 import { PDFDocument } from "pdf-lib";
@@ -13,176 +11,126 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import os from "os";
 
-dotenv.config({ path: "./.env" });
+dotenv.config();
 
-// ------------------ ESM __dirname ------------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ------------------ Express App ------------------
 const app = express();
 app.use(express.json({ limit: "30mb" }));
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+app.use(cors());
 
-// ------------------ Multer ------------------
 const upload = multer({ storage: multer.memoryStorage() });
 
-// ------------------ Utilities ------------------
-const exists = p => { try { return fs.existsSync(p); } catch { return false; } };
-const safeLog = (...a) => { try { console.log(...a); } catch(_) {} };
-const safeWarn = (...a) => { try { console.warn(...a); } catch(_) {} };
-const safeError = (...a) => { try { console.error(...a); } catch(_) {} };
+// ------------------ Constants ------------------
+const HTML_DIR = path.join(__dirname, "../../html");
+const SRC_DIR  = path.join(__dirname, "../../src");
+const IMG_DIR  = path.join(__dirname, "../../img");
+const INDEX_HTML = path.join(HTML_DIR, "index.html");
 
-// ------------------ Paths ------------------
-const CWD_ROOT = path.resolve(".");
-const PROJECT_ROOT = path.resolve(__dirname, "../../../..");
-const STATIC_DIRS = [
-  path.join(CWD_ROOT, "public"),
-  path.join(CWD_ROOT, "dist"),
-  path.join(CWD_ROOT, "build"),
-  CWD_ROOT,
-].filter(p => exists(p) && fs.statSync(p).isDirectory());
-
-// Mount static directories
-STATIC_DIRS.forEach(dir => {
-  app.use(express.static(dir));
-  safeLog("[startup] Mounted static:", dir);
-});
-
-// ------------------ Email Transporter ------------------
-let transporter = null;
-if (process.env.GMAIL_USER && process.env.GMAIL_PASSWORD) {
-  try {
-    transporter = nodemailer.createTransport({
+// ------------------ Nodemailer ------------------
+const transporter = process.env.GMAIL_USER && process.env.GMAIL_PASSWORD
+  ? nodemailer.createTransport({
       service: "gmail",
       auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASSWORD }
-    });
-    transporter.verify()
-      .then(() => safeLog("[startup] Email transporter OK"))
-      .catch(err => safeWarn("[startup] Email verify:", err?.message || err));
-  } catch (e) {
-    safeWarn("[startup] transporter init failed:", e?.message || e);
-    transporter = null;
-  }
-} else {
-  safeWarn("[startup] GMAIL_USER/GMAIL_PASSWORD not set. /send-email will fail.");
-}
+    })
+  : null;
 
-// ------------------ soffice Check ------------------
-let sofficeAvailable = false;
-try {
-  exec("soffice --version", (err) => {
-    if (!err) { sofficeAvailable = true; safeLog("[startup] soffice detected"); }
-    else safeWarn("[startup] soffice unavailable");
-  });
-} catch (e) { safeWarn("[startup] soffice check failed:", e?.message || e); }
+if (!transporter) console.warn("GMAIL_USER or GMAIL_PASSWORD not set. /send-email will fail.");
 
-// ------------------ API ROUTES ------------------
+// ------------------ Routes ------------------
 
 // Health
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString() });
-});
+app.get("/health", (_, res) => res.json({ status: "ok", time: new Date().toISOString() }));
 
-// Send Email
+// Send email
 app.post("/send-email", async (req, res) => {
   try {
-    if (!transporter) return res.status(500).json({ ok: false, error: "Email transporter not configured" });
-    const { to, subject, message } = req.body || {};
-    if (!to || !subject || !message) return res.status(400).json({ ok: false, error: "Missing fields" });
-    if (typeof to !== "string" || !/@/.test(to)) return res.status(400).json({ ok: false, error: "Invalid recipient" });
+    if (!transporter) return res.status(500).json({ error: "Email transporter not configured" });
 
-    const qrPathCandidates = [
-      path.join(CWD_ROOT, "img", "GCash-MyQR.jpg"),
-      path.join(PROJECT_ROOT, "src", "img", "GCash-MyQR.jpg"),
-      path.join(CWD_ROOT, "GCash-MyQR.jpg")
-    ];
-    const qrPath = qrPathCandidates.find(exists);
-    const attachments = qrPath ? [{ filename: path.basename(qrPath), path: qrPath }] : [];
+    const { to, subject, message } = req.body;
+    if (!to || !subject || !message) return res.status(400).json({ error: "Missing fields" });
+
+    const qrPath = path.join(IMG_DIR, "GCash-MyQR.jpg");
+    const attachments = fs.existsSync(qrPath) ? [{ filename: "GCash-MyQR.jpg", path: qrPath }] : [];
 
     const info = await transporter.sendMail({
       from: process.env.GMAIL_USER,
       to, subject, text: message, attachments
     });
+
     res.json({ ok: true, info: info?.response || info });
   } catch (err) {
-    safeError("[/send-email] error:", err?.message || err);
-    res.status(500).json({ ok: false, error: err?.message || "internal error" });
+    console.error("/send-email error:", err);
+    res.status(500).json({ error: err.message || "internal error" });
   }
 });
 
-// Convert DOCX to PDF and count pages
+// Convert DOCX
 app.post("/convert-docx", upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ ok: false, error: "No file uploaded" });
-    if (!sofficeAvailable) return res.status(503).json({ ok: false, error: "LibreOffice missing" });
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const tempDir = path.join(os.tmpdir(), "printq-temp");
-    if (!exists(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
     const safeName = `${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
     const inputPath = path.join(tempDir, safeName);
     fs.writeFileSync(inputPath, req.file.buffer);
 
     await new Promise((resolve, reject) => {
-      const cmd = `soffice --headless --convert-to pdf:writer_pdf_Export --outdir "${tempDir}" "${inputPath}"`;
-      exec(cmd, { timeout: 60000 }, (err) => {
-        if (err) return reject(err);
+      exec(`soffice --headless --convert-to pdf --outdir "${tempDir}" "${inputPath}"`, (err, _, stderr) => {
+        if (err) return reject(stderr || err);
         resolve();
       });
     });
 
     const pdfPath = inputPath.replace(/\.(docx|doc)$/i, ".pdf");
-    if (!exists(pdfPath)) throw new Error("Converted PDF not found");
+    if (!fs.existsSync(pdfPath)) throw new Error("Converted PDF not found");
 
-    const pdfBytes = fs.readFileSync(pdfPath);
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pdfDoc = await PDFDocument.load(fs.readFileSync(pdfPath));
     const pages = pdfDoc.getPageCount();
 
-    // cleanup
-    try { fs.unlinkSync(inputPath); } catch(_) {}
-    try { fs.unlinkSync(pdfPath); } catch(_) {}
+    fs.unlinkSync(inputPath);
+    fs.unlinkSync(pdfPath);
 
     res.json({ ok: true, originalName: req.file.originalname, pages });
   } catch (err) {
-    safeError("[/convert-docx] error:", err?.message || err);
-    res.status(500).json({ ok: false, error: err?.message || "conversion failed" });
+    console.error("/convert-docx error:", err);
+    res.status(500).json({ error: err.message || "conversion failed" });
   }
 });
 
-// ------------------ SPA fallback (preserves design) ------------------
-app.get("*", (req, res, next) => {
-  try {
-    const accept = req.headers.accept || "";
-    if (!accept.includes("text/html") && !accept.includes("*/*")) return next();
+// ------------------ Static serving ------------------
+if (fs.existsSync(HTML_DIR)) app.use(express.static(HTML_DIR));
+if (fs.existsSync(SRC_DIR)) app.use("/src", express.static(SRC_DIR));
+if (fs.existsSync(IMG_DIR)) app.use("/img", express.static(IMG_DIR));
 
-    const candidates = [
-      path.join(CWD_ROOT, "index.html"),
-      path.join(CWD_ROOT, "public", "index.html"),
-      path.join(CWD_ROOT, "dist", "index.html"),
-      path.join(CWD_ROOT, "build", "index.html"),
-    ];
+// ------------------ SPA fallback ------------------
+app.use((req, res, next) => {
+  if (req.method !== "GET") return next();
+  const acceptsHtml = req.headers.accept?.includes("text/html") || req.headers.accept?.includes("*/*");
+  if (!acceptsHtml) return next();
 
-    const indexFile = candidates.find(exists);
-    if (indexFile) return res.sendFile(indexFile);
-
-    // fallback only if absolutely missing
-    return res.status(200).type("html").send(`<h2>PrintQ — index.html not found</h2>`);
-  } catch (e) {
-    safeError("[SPA fallback] error:", e?.message || e);
+  if (fs.existsSync(INDEX_HTML)) {
+    return res.sendFile(INDEX_HTML, err => {
+      if (err) {
+        console.error("Failed sendFile index.html, fallback readFile:", err);
+        try { res.type("html").send(fs.readFileSync(INDEX_HTML, "utf8")); } catch { next(); }
+      }
+    });
+  } else {
+    console.warn("index.html not found at", INDEX_HTML);
     return next();
   }
 });
 
-// ------------------ Error Handling ------------------
+// ------------------ Error handler ------------------
 app.use((err, req, res, next) => {
-  safeError("[express err]", err?.stack || err);
-  if (!res.headersSent) res.status(500).json({ ok: false, error: "internal server error" });
+  console.error("Unhandled error:", err);
+  if (!res.headersSent) res.status(500).json({ error: "internal server error" });
 });
 
-process.on("uncaughtException", (err) => { safeError("[uncaughtException]", err?.stack || err); });
-process.on("unhandledRejection", (reason, p) => { safeError("[unhandledRejection]", reason, p); });
-
-// ------------------ Start Server ------------------
-const PORT = Number(process.env.PORT) || 3000;
-app.listen(PORT, () => safeLog(`[startup] Server running on port ${PORT}`));
+// ------------------ Start server ------------------
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`[server] Running on port ${PORT}`));
