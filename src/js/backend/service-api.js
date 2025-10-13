@@ -18,31 +18,70 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// ✅ MIDDLEWARE SETUP (in correct order)
+// ✅ MIDDLEWARE SETUP
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ limit: "25mb", extended: true }));
-app.use(cors());
 
-// Serve static files – root index.html and assets
+// ✅ CORS - Allow all origins
+app.use(cors({
+  origin: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  credentials: true,
+  maxAge: 3600,
+}));
+
+// ✅ Preflight handler
+app.options("*", cors());
+
+// ✅ Security headers
+app.use((req, res, next) => {
+  res.header("X-Content-Type-Options", "nosniff");
+  res.header("X-Frame-Options", "SAMEORIGIN");
+  res.header("X-XSS-Protection", "1; mode=block");
+  res.header("Access-Control-Allow-Origin", "*");
+  next();
+});
+
 const ROOT_DIR = path.resolve(".");
 app.use(express.static(ROOT_DIR, {
   maxAge: "1d",
   etag: false,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".html")) {
+      res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    }
+  },
 }));
 
-// ✅ HEALTH CHECK ROUTE
-app.get("/health", (req, res) => {
-  res.json({ ok: true, time: new Date(), status: "Server is running" });
+// ✅ REQUEST LOGGING
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.path}`);
+  next();
 });
 
-// ✅ EMAIL API ROUTE
+// ✅ HEALTH CHECK
+app.get("/health", (req, res) => {
+  console.log("✅ Health check requested");
+  res.status(200).json({ 
+    ok: true, 
+    time: new Date().toISOString(),
+    status: "Server is running",
+  });
+});
+
+// ✅ EMAIL API
 app.post("/send-email", async (req, res) => {
   try {
+    console.log("📧 Email request received");
+    
     const { to, subject, message } = req.body;
     
-    // Validate input
     if (!to || !subject || !message) {
+      console.warn("⚠️ Missing email fields");
       return res.status(400).json({ 
+        ok: false,
         error: "Missing required fields: to, subject, message" 
       });
     }
@@ -50,158 +89,234 @@ app.post("/send-email", async (req, res) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(to)) {
-      return res.status(400).json({ error: "Invalid email address" });
-    }
-
-    // Check environment variables
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_PASSWORD) {
-      console.error("Email credentials not configured");
-      return res.status(500).json({ 
-        error: "Email service not properly configured. Check environment variables." 
+      console.warn(`⚠️ Invalid email: ${to}`);
+      return res.status(400).json({ 
+        ok: false,
+        error: "Invalid email address" 
       });
     }
 
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailPassword = process.env.GMAIL_PASSWORD;
+
+    if (!gmailUser || !gmailPassword) {
+      console.error("❌ Gmail credentials missing");
+      return res.status(503).json({ 
+        ok: false,
+        error: "Email service unavailable",
+        details: "Server not configured for email" 
+      });
+    }
+
+    console.log(`🔧 Configuring transporter for ${gmailUser}`);
+    
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { 
-        user: process.env.GMAIL_USER, 
-        pass: process.env.GMAIL_PASSWORD 
+        user: gmailUser, 
+        pass: gmailPassword 
       },
+      connectionTimeout: 10000,
+      socketTimeout: 10000,
     });
 
-    // Check QR code attachment
-    const qrPath = path.join(ROOT_DIR, "img", "GCash-MyQR.jpg");
-    const attachments = fs.existsSync(qrPath)
-      ? [{ filename: "GCash-MyQR.jpg", path: qrPath }]
-      : [];
+    // Verify transporter
+    await transporter.verify();
+    console.log("✅ Email transporter verified");
 
-    const info = await transporter.sendMail({
-      from: process.env.GMAIL_USER,
+    // Check QR attachment
+    const qrPath = path.join(ROOT_DIR, "img", "GCash-MyQR.jpg");
+    const attachments = [];
+    
+    if (fs.existsSync(qrPath)) {
+      console.log("📎 QR code attached");
+      attachments.push({ 
+        filename: "GCash-MyQR.jpg", 
+        path: qrPath 
+      });
+    }
+
+    const mailOptions = {
+      from: gmailUser,
       to,
       subject,
       text: message,
-      html: `<p>${message.replace(/\n/g, "<br>")}</p>`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <p>${message.replace(/\n/g, "<br>")}</p>
+          ${attachments.length > 0 ? "<hr><p style='font-size: 12px; color: #666;'><em>Payment QR code attached</em></p>" : ""}
+        </div>
+      `,
       attachments,
-    });
+    };
 
-    console.log("✅ Email sent successfully:", info.messageId);
-    res.json({ 
+    console.log(`📤 Sending email to ${to}`);
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log(`✅ Email sent: ${info.messageId}`);
+    
+    return res.status(200).json({ 
       ok: true, 
       message: "Email sent successfully",
-      messageId: info.messageId 
+      messageId: info.messageId,
     });
+
   } catch (err) {
     console.error("❌ Email error:", err.message);
-    res.status(500).json({ 
+    return res.status(500).json({ 
+      ok: false,
       error: "Failed to send email",
       details: err.message 
     });
   }
 });
 
-// ✅ DOCX CONVERSION API ROUTE
+// ✅ DOCX CONVERSION API
 app.post("/convert-docx", upload.single("file"), async (req, res) => {
   try {
-    // Validate file upload
+    console.log("📄 DOCX conversion request received");
+    
     if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+      console.warn("⚠️ No file uploaded");
+      return res.status(400).json({ 
+        ok: false,
+        error: "No file uploaded" 
+      });
     }
+
+    console.log(`📝 File: ${req.file.originalname} (${(req.file.size / 1024).toFixed(2)} KB)`);
 
     // Validate file type
     const allowedMimes = [
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/octet-stream",
     ];
+    
     if (!allowedMimes.includes(req.file.mimetype)) {
+      console.warn(`⚠️ Invalid MIME type: ${req.file.mimetype}`);
       return res.status(400).json({ 
+        ok: false,
         error: "Invalid file type. Only DOCX and DOC files are allowed." 
       });
     }
 
-    // Validate file size (max 25MB)
-    const maxSize = 25 * 1024 * 1024;
+    // Validate file size (max 50MB)
+    const maxSize = 50 * 1024 * 1024;
     if (req.file.size > maxSize) {
-      return res.status(400).json({ error: "File size exceeds 25MB limit" });
+      console.warn(`⚠️ File too large: ${req.file.size} bytes`);
+      return res.status(413).json({ 
+        ok: false,
+        error: "File size exceeds 50MB limit" 
+      });
     }
 
     const tmpDir = path.join(os.tmpdir(), "printq-temp");
     
-    // Ensure temp directory exists
     if (!fs.existsSync(tmpDir)) {
       fs.mkdirSync(tmpDir, { recursive: true });
+      console.log(`📁 Created temp directory: ${tmpDir}`);
     }
 
-    const inputPath = path.join(tmpDir, `${Date.now()}-${req.file.originalname}`);
+    const timestamp = Date.now();
+    const safeFilename = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const inputPath = path.join(tmpDir, `${timestamp}-${safeFilename}`);
     const pdfPath = inputPath.replace(/\.(docx|doc)$/i, ".pdf");
 
-    // Write file to temp location
+    // Write file
     fs.writeFileSync(inputPath, req.file.buffer);
+    console.log(`✅ File written to temp`);
 
-    // Convert DOCX to PDF using LibreOffice
+    // Convert DOCX to PDF
+    console.log("🔄 Converting to PDF with LibreOffice...");
+    
     await new Promise((resolve, reject) => {
       const cmd = `soffice --headless --convert-to pdf:writer_pdf_Export --outdir "${tmpDir}" "${inputPath}"`;
       
-      exec(cmd, { timeout: 60000 }, (err, stdout, stderr) => {
+      exec(cmd, { 
+        timeout: 60000, 
+        maxBuffer: 10 * 1024 * 1024,
+        env: { ...process.env, HOME: tmpDir }
+      }, (err, stdout, stderr) => {
         if (err) {
-          console.error("❌ Conversion error:", stderr || err.message);
+          console.error(`❌ LibreOffice error: ${stderr || err.message}`);
           reject(new Error(`Conversion failed: ${stderr || err.message}`));
         } else {
+          console.log("✅ LibreOffice conversion completed");
           resolve();
         }
       });
     });
 
-    // Verify PDF was created
+    // Verify PDF exists
     if (!fs.existsSync(pdfPath)) {
-      throw new Error("PDF file was not created during conversion");
+      console.error(`❌ PDF not created at: ${pdfPath}`);
+      try { fs.unlinkSync(inputPath); } catch (e) {}
+      
+      return res.status(500).json({ 
+        ok: false,
+        error: "Conversion failed: PDF was not created" 
+      });
     }
+
+    console.log(`✅ PDF created`);
 
     // Read and validate PDF
     const pdfBytes = fs.readFileSync(pdfPath);
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const pages = pdfDoc.getPageCount();
 
-    // Cleanup temp files
+    console.log(`📊 PDF has ${pages} page(s)`);
+
+    // Cleanup
     try {
       fs.unlinkSync(inputPath);
       fs.unlinkSync(pdfPath);
-    } catch (cleanupErr) {
-      console.warn("⚠️ Warning: Could not clean up temp files:", cleanupErr.message);
+      console.log("🧹 Cleanup complete");
+    } catch (e) {
+      console.warn("⚠️ Cleanup warning:", e.message);
     }
 
-    console.log(`✅ DOCX conversion successful: ${pages} pages`);
-    res.json({ 
+    console.log(`✅ Conversion successful`);
+    return res.status(200).json({ 
       ok: true, 
       pages,
-      message: "File converted successfully" 
+      message: "File converted successfully",
+      filename: req.file.originalname,
     });
+
   } catch (err) {
-    console.error("❌ DOCX conversion error:", err.message);
-    res.status(500).json({ 
+    console.error("❌ DOCX error:", err.message);
+    return res.status(500).json({ 
+      ok: false,
       error: "Failed to convert document",
       details: err.message 
     });
   }
 });
 
-// ✅ API ROUTES ERROR HANDLER
-app.use("/send-email", (req, res) => {
-  res.status(405).json({ error: "Method not allowed. Use POST." });
+// ✅ METHOD VALIDATION
+app.get("/send-email", (req, res) => {
+  return res.status(405).json({ 
+    ok: false,
+    error: "Method not allowed. Use POST." 
+  });
 });
 
-app.use("/convert-docx", (req, res) => {
-  res.status(405).json({ error: "Method not allowed. Use POST." });
+app.get("/convert-docx", (req, res) => {
+  return res.status(405).json({ 
+    ok: false,
+    error: "Method not allowed. Use POST." 
+  });
 });
 
-// ✅ SPA FALLBACK - MIDDLEWARE APPROACH (most reliable)
-// This must come AFTER all API routes but BEFORE final error handler
+// ✅ SPA FALLBACK
 app.use((req, res, next) => {
-  // Only serve index.html for GET requests
   if (req.method === "GET") {
-    // Don't serve index.html for API routes or files with extensions
     if (!req.path.startsWith("/api") && !req.path.includes(".")) {
       const indexPath = path.join(ROOT_DIR, "index.html");
       if (fs.existsSync(indexPath)) {
+        console.log(`📄 Serving index.html for: ${req.path}`);
         return res.sendFile(indexPath);
       }
     }
@@ -209,49 +324,58 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ 404 HANDLER - Serve index.html as fallback for SPA routing
+// ✅ 404 HANDLER
 app.use((req, res) => {
+  console.log(`⚠️ 404 - ${req.method} ${req.path}`);
+  
   const indexPath = path.join(ROOT_DIR, "index.html");
   if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).json({ error: "Not found" });
+    return res.sendFile(indexPath);
   }
+
+  return res.status(404).json({ 
+    ok: false,
+    error: "Not found" 
+  });
 });
 
-// ✅ GLOBAL ERROR HANDLER
+// ✅ ERROR HANDLER
 app.use((err, req, res, next) => {
-  console.error("❌ Unhandled error:", err);
-  res.status(err.status || 500).json({
+  console.error("❌ Error:", err.message);
+  return res.status(err.status || 500).json({
+    ok: false,
     error: "Internal server error",
-    details: process.env.NODE_ENV === "development" ? err.message : undefined,
   });
 });
 
 // ✅ START SERVER
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`
-╔══════════════════════════════════════╗
-║  ✅ PrintQ Server Running             ║
-║  🚀 Port: ${PORT}                         ║
-║  📍 Environment: ${process.env.NODE_ENV || "production"}           ║
-║  ⏰ Started: ${new Date().toISOString()}  ║
-╚══════════════════════════════════════╝
-  `);
-  console.log("✅ Available endpoints:");
+const server = app.listen(PORT, () => {
+  console.log(`\n╔════════════════════════════════════════╗`);
+  console.log(`║  ✅ PrintQ Server Started Successfully  ║`);
+  console.log(`║  🚀 Port: ${PORT}                           ║`);
+  console.log(`║  📍 Environment: ${(process.env.NODE_ENV || "production").padEnd(19)}║`);
+  console.log(`╚════════════════════════════════════════╝\n`);
+  
+  console.log("✅ Endpoints:");
   console.log("   GET  /health");
   console.log("   POST /send-email");
-  console.log("   POST /convert-docx");
+  console.log("   POST /convert-docx\n");
 });
 
 // ✅ GRACEFUL SHUTDOWN
 process.on("SIGTERM", () => {
-  console.log("📍 SIGTERM received, shutting down gracefully...");
-  process.exit(0);
+  console.log("\n📍 SIGTERM - shutting down...");
+  server.close(() => {
+    console.log("✅ Server closed");
+    process.exit(0);
+  });
 });
 
 process.on("SIGINT", () => {
-  console.log("📍 SIGINT received, shutting down gracefully...");
-  process.exit(0);
+  console.log("\n📍 SIGINT - shutting down...");
+  server.close(() => {
+    console.log("✅ Server closed");
+    process.exit(0);
+  });
 });
