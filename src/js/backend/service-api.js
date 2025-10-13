@@ -21,7 +21,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(express.json({ limit: "25mb" }));
 app.use(cors());
 
-// Serve static files — root index.html and assets
+// Serve static files – root index.html and assets
 const ROOT_DIR = path.resolve(".");
 app.use(express.static(ROOT_DIR));
 
@@ -90,8 +90,8 @@ app.post("/convert-docx", upload.single("file"), async (req, res) => {
   }
 });
 
-// ✅ Fallback for SPA — always serve index.html
-app.get("*", (req, res) => {
+// ✅ Fallback for SPA – always serve index.html
+app.get("/*", (req, res) => {
   res.sendFile(path.join(ROOT_DIR, "index.html"));
 });
 
