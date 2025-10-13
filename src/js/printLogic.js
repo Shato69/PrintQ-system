@@ -62,6 +62,7 @@ async function uploadFileToSupabase(file) {
   }
 }
 
+const BACKEND_URL = "https://campusprintq.onrender.com/";
 // ================== Email API call (robust) ==================
 async function sendEmailNotification(to, subject, message) {
   if (!to || !subject || !message) {
@@ -70,7 +71,8 @@ async function sendEmailNotification(to, subject, message) {
   }
 
   try {
-    const res = await fetch("http://localhost:3000/send-email", {
+    //const res = await fetch("http://localhost:3000/send-email"
+    const res = await fetch("${BACKEND_URL}/send-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to, subject, message })
@@ -155,7 +157,8 @@ async function processSingleFile(file) {
       const formData = new FormData();
       formData.append("file", file);
       try {
-        const res = await fetch("http://localhost:3000/convert-docx", {
+        //const res = await fetch("http://localhost:3000/convert-docx"
+        const res = await fetch (`${BACKEND_URL}/convert-docx`, {
           method: "POST",
           body: formData,
         });
