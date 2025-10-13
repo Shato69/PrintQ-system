@@ -137,7 +137,7 @@ if (fs.existsSync(IMG_DIR)) {
 }
 
 // ------------------ SPA fallback ------------------
-app.get("*", (req, res) => {
+app.get("/*", (req, res) => {
   if (fs.existsSync(INDEX_HTML_PATH)) {
     res.sendFile(INDEX_HTML_PATH);
   } else {
@@ -157,3 +157,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
