@@ -1,6 +1,7 @@
 import { supabase } from "./supabase.js";
 
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
+const BACKEND_URL = "https://campusprintq.onrender.com"; 
 
 // State
 let uploadedFiles = []; // { file, name, type, size, pages }
@@ -62,7 +63,6 @@ async function uploadFileToSupabase(file) {
   }
 }
 
-const BACKEND_URL = "https://campusprintq.onrender.com";
 // ================== Email API call (robust) ==================
 async function sendEmailNotification(to, subject, message) {
   if (!to || !subject || !message) {
@@ -158,7 +158,7 @@ async function processSingleFile(file) {
       formData.append("file", file);
       try {
         //const res = await fetch("http://localhost:3000/convert-docx"
-        const res = await fetch (`${BACKEND_URL}/convert-docx`, {
+        const res = await fetch(`${BACKEND_URL}/convert-docx`, {
           method: "POST",
           body: formData,
         });
