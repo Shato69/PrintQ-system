@@ -23,6 +23,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ================== FALLBACK ROUTE ==================
+// Handles any route not matched above (Render-safe)
+app.use((req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
 // ================== FRONTEND SERVING ==================
 // Serve frontend (index.html, assets, etc.)
 const frontendPath = join(__dirname, "../../../"); // adjust if your index.html is at project root
@@ -97,11 +102,7 @@ app.post("/convert-docx", upload.single("file"), async (req, res) => {
   }
 });
 
-// ================== FALLBACK ROUTE ==================
-// Handles any route not matched above (Render-safe)
-app.use((req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
+
 
 
 // ================== START SERVER ==================
