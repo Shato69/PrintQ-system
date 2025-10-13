@@ -22,7 +22,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ limit: "25mb", extended: true }));
 
-// ✅ CORS - Allow all origins
+// ✅ CORS - Direct configuration, no wildcards
 app.use(cors({
   origin: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -30,9 +30,6 @@ app.use(cors({
   credentials: true,
   maxAge: 3600,
 }));
-
-// ✅ Preflight handler
-app.options("*", cors());
 
 // ✅ Security headers
 app.use((req, res, next) => {
@@ -310,7 +307,7 @@ app.get("/convert-docx", (req, res) => {
   });
 });
 
-// ✅ SPA FALLBACK
+// ✅ SPA FALLBACK - NO CATCH-ALL ROUTES
 app.use((req, res, next) => {
   if (req.method === "GET") {
     if (!req.path.startsWith("/api") && !req.path.includes(".")) {
