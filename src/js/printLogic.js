@@ -1,6 +1,8 @@
 import { supabase } from "./supabase.js";
 
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.16.105/pdf.worker.min.js';
+
 
 // State
 let uploadedFiles = []; // { file, name, type, size, pages }
@@ -62,7 +64,7 @@ async function uploadFileToSupabase(file) {
   }
 }
 
-const BACKEND_URL = "https://campusprintq.onrender.com/";
+const BACKEND_URL = "https://campusprintq.onrender.com";
 // ================== Email API call (robust) ==================
 async function sendEmailNotification(to, subject, message) {
   if (!to || !subject || !message) {
@@ -72,7 +74,7 @@ async function sendEmailNotification(to, subject, message) {
 
   try {
     //const res = await fetch("http://localhost:3000/send-email"
-    const res = await fetch("${BACKEND_URL}/send-email", {
+    const res = await fetch(`${BACKEND_URL}/send-email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to, subject, message })
