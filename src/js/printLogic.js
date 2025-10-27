@@ -4,7 +4,7 @@ const pdfjsLib = window['pdfjs-dist/build/pdf'];
 
 // ✅ BACKEND URL - Production only
 // For debugging localhost, uncomment this line:
- //const BACKEND_URL = "http://localhost:3000";
+//const BACKEND_URL = "http://localhost:3000";
 
 const BACKEND_URL = "https://campusprintq.onrender.com";
 
@@ -25,12 +25,12 @@ async function savePrintJob(jobData) {
       .insert([{
         color: jobData.color,
         cost: jobData.cost,
-        filename: jobData.fileName,
-        pagecount: jobData.pageCount,
-        papersize: jobData.paperSize,
-        status: 'pending',
+        filename: jobData.filename,          // ✅ fixed
+        pagecount: jobData.pagecount,        // ✅ fixed
+        papersize: jobData.papersize,        // ✅ fixed
+        status: jobData.status || "pending", // ✅ fallback
         created_at: new Date().toISOString(),
-        customer_email: jobData.customerEmail
+        customer_email: jobData.customer_email // ✅ fixed
       }])
       .select();
 
@@ -73,7 +73,7 @@ async function uploadFileToSupabase(file) {
   }
 }
 
-// ================== EMAIL API ==================
+/* ================== EMAIL API (deprecated for supabase api)==================
 async function sendEmailNotification(to, subject, message) {
   if (!to || !subject || !message) {
     console.error("❌ Missing email fields");
@@ -107,7 +107,7 @@ async function sendEmailNotification(to, subject, message) {
     console.error("❌ Email error:", err.message);
     throw err;
   }
-}
+}*/
 
 // ================== PAGE NAVIGATION ==================
 window.showPrintingPage = function () {
@@ -300,7 +300,7 @@ function updatePayButtonState(state = null) {
 }
 
 // ================== PAYMENT ==================
-window.processPayment = async function () {
+/*window.processPayment = async function () {
   const payButton = document.getElementById("payButton");
   payButton.disabled = true;
   payButton.textContent = "⏳ Processing…";
@@ -338,13 +338,15 @@ window.processPayment = async function () {
         cost, 
         orderId: order?.id 
       });
+
+      
     }
 
     if (ordersSummary.length === 0) throw new Error("All uploads failed.");
 
     // Create email
-    const subject = `PrintQ Order Confirmation – ${ordersSummary.length} file(s)`;
-    const messageLines = ["Your files have been received and are ready to print:\n"];
+    //const subject = `PrintQ Order Confirmation – ${ordersSummary.length} file(s)`;
+    //const messageLines = ["Your files have been received and are ready to print:\n"];
     
     ordersSummary.forEach(o => {
       messageLines.push(
@@ -357,12 +359,70 @@ window.processPayment = async function () {
     messageLines.push("\nScan the attached QR to pay.");
     messageLines.push("\nThis message is system generated.");
     
-    const message = messageLines.join("\n");
+    //const message = messageLines.join("\n");
 
     // Send email
-    await sendEmailNotification(customerEmail, subject, message);
+    //await sendEmailNotification(customerEmail, subject, message);
 
     alert("✅ Your order has been placed! Check your Gmail for confirmation.");
+    updatePayButtonState("reset");
+
+  } catch (err) {
+    console.error("❌ Payment error:", err);
+    alert(`❌ ${err.message}`);
+    updatePayButtonState("active");
+  }
+};*/
+
+window.processPayment = async function () {
+  const payButton = document.getElementById("payButton");
+  payButton.disabled = true;
+  payButton.textContent = "⏳ Processing…";
+  payButton.style.backgroundColor = "#d1d5db";
+
+  try {
+    const customerEmail = document.getElementById("customerEmail").value.trim();
+    if (!customerEmail) throw new Error("Please enter a Gmail address.");
+    if (uploadedFiles.length === 0) throw new Error("No files uploaded.");
+
+    console.log("💳 Starting payment process...");
+
+    // Upload files and save orders
+    for (const f of uploadedFiles) {
+      const filePath = await uploadFileToSupabase(f.file);
+      if (!filePath) continue;
+
+      const cost = f.pages * currentPricePerPage;
+      const orderData = {
+        filename: f.name,                                                                     
+        pagecount: f.pages,                                  
+        papersize: currentPaperSize,                         
+        color: currentPrintType === "bw" ? "Black & White" : "Colored", 
+        cost,                                                 
+        status: "pending",                                    
+        customer_email: customerEmail                         
+      };
+      // Save to Supabase
+      const order = await savePrintJob(orderData);
+      console.log("✅ Order inserted:", order);
+
+      // ✅ Trigger email function right after each insert
+      if (order) {
+        try {
+          //await fetch("https://ncpxwgbvvfqybqzckhrs.functions.supabase.co/order-email"
+            await fetch ("https://ncpxwgbvvfqybqzckhrs.supabase.co/functions/v1/order-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ record: order }),
+          });
+          console.log("📨 Edge Function triggered for:", order.customer_email);
+        } catch (err) {
+          console.error("❌ Edge Function trigger failed:", err);
+        }
+      }
+    }
+
+    alert("✅ Your order has been placed! Thank you for using our online servce!");
     updatePayButtonState("reset");
 
   } catch (err) {
